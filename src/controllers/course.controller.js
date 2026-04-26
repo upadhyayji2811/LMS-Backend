@@ -113,7 +113,6 @@ const getCourseById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Course not found." });
     }
 
-    // Check enrollment if user is logged in
     let isEnrolled = false;
     let enrollment = null;
 
@@ -126,32 +125,49 @@ const getCourseById = async (req, res) => {
       isEnrolled = !!enrollment;
     }
 
-    // Lock video URLs for non-enrolled students (unless free lesson or admin/instructor)
     const isInstructorOrAdmin =
       req.user &&
       (req.user.role === "admin" ||
         (req.user.role === "instructor" &&
           course.instructor._id.toString() === req.user._id.toString()));
 
-    if (!isEnrolled && !isInstructorOrAdmin) {
-      course.lessons = course.lessons.map((lesson) => ({
-        ...lesson,
-        videoUrl: lesson.isFree ? lesson.videoUrl : null, // Only expose free lesson URLs
-      }));
-    }
+    // ─── Strip sensitive video source fields from ALL client responses ─────────
+    // Students never see youtubeVideoId / youtubeUrl / videoUrl / videoPublicId.
+    // They only get: hasVideo (boolean) — actual stream served via /stream endpoint.
+    // Instructor/Admin: they manage lessons via separate instructor panel, full data not needed here either.
+    course.lessons = course.lessons.map((lesson) => {
+      const hasVideo = !!(lesson.youtubeVideoId || lesson.videoUrl);
+      const isFreeAndHasVideo = lesson.isFree && hasVideo;
 
-    // Add enrollment details
+      return {
+        _id: lesson._id,
+        title: lesson.title,
+        description: lesson.description,
+        duration: lesson.duration,
+        order: lesson.order,
+        isFree: lesson.isFree,
+        hasVideo,
+        // Free lesson: student can stream; locked: false
+        canStream: isEnrolled || isInstructorOrAdmin || isFreeAndHasVideo,
+        resources: isEnrolled || isInstructorOrAdmin ? lesson.resources : [],
+        hasQuiz: lesson.hasQuiz,
+        // Internal fields NEVER sent to client:
+        // youtubeVideoId, youtubeUrl, videoUrl, videoPublicId — all omitted
+      };
+    });
+
     course.isEnrolled = isEnrolled;
     course.enrollment = enrollment
       ? {
-        progress: enrollment.progress,
-        completedLessons: enrollment.completedLessons,
-        currentLessonId: enrollment.currentLessonId,
-        isCompleted: enrollment.isCompleted,
-      }
+          progress: enrollment.progress,
+          completedLessons: enrollment.completedLessons,
+          currentLessonId: enrollment.currentLessonId,
+          isCompleted: enrollment.isCompleted,
+          expiresAt: enrollment.expiresAt,
+          isExpired: enrollment.expiresAt ? new Date() > new Date(enrollment.expiresAt) : false,
+        }
       : null;
 
-    // Calculate instructor course count
     const instructorCourseCount = await Course.countDocuments({
       instructor: course.instructor._id,
       isPublished: true,

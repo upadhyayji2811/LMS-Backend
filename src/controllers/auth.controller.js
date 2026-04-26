@@ -45,9 +45,19 @@ const register = async (req, res) => {
       });
     }
 
-    // Only allow student or instructor roles during registration
-    const allowedRoles = ["student", "instructor"];
-    const userRole = allowedRoles.includes(role) ? role : "student";
+    // OLD: Only allow student or instructor roles during registration
+    // OLD: const allowedRoles = ["student", "instructor"];
+    // OLD: const userRole = allowedRoles.includes(role) ? role : "student";
+
+    // NEW: Public registration sirf students ke liye hai.
+    // Instructor aur Admin accounts sirf admin create karta hai.
+    if (role === "instructor" || role === "admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Instructor/Admin accounts can only be created by an administrator. Please contact your platform admin.",
+      });
+    }
+    const userRole = "student"; // Public registration = always student
 
     // Create the user (password hashed in pre-save hook)
     const user = await User.create({

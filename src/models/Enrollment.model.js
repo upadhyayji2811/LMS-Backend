@@ -68,12 +68,21 @@ const enrollmentSchema = new mongoose.Schema(
     },
     currentLessonId: {
       type: mongoose.Schema.Types.ObjectId,
-      default: null, // Resume from last watched lesson
+      default: null,
     },
     notes: {
       type: String,
       maxlength: [5000, "Notes cannot exceed 5000 characters"],
       default: "",
+    },
+    // NEW: Course access expiry — 6 mahine baad access khatam ho jaata hai
+    expiresAt: {
+      type: Date,
+      default: null, // null = no expiry (set during enrollment)
+    },
+    isAccessExpired: {
+      type: Boolean,
+      default: false, // Background job ya API check se true ho sakta hai
     },
   },
   {
@@ -87,6 +96,14 @@ enrollmentSchema.index({ user: 1 });
 enrollmentSchema.index({ course: 1 });
 enrollmentSchema.index({ purchasedAt: -1 });
 enrollmentSchema.index({ paymentStatus: 1 });
+enrollmentSchema.index({ expiresAt: 1 }); // NEW: expiry queries ke liye
+
+// NEW: Virtual — real-time expiry check
+enrollmentSchema.virtual("isCurrentlyExpired").get(function () {
+  if (!this.expiresAt) return false; // No expiry = never expires
+  return new Date() > this.expiresAt;
+});
+
 
 // ─── Instance Method: Update progress ─────────────────────────────────────────
 /**

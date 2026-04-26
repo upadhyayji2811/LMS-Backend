@@ -26,6 +26,10 @@ const liveClassRoutes = require("./src/routes/liveClass.routes");
 const quizRoutes = require("./src/routes/quiz.routes");
 const certificateRoutes = require("./src/routes/certificate.routes");
 const adminRoutes = require("./src/routes/admin.routes");
+// NEW: Installment plan routes (3-part payment)
+const installmentRoutes = require("./src/routes/installment.routes");
+// NEW: Admin custom pricing routes
+const customPricingRoutes = require("./src/routes/customPricing.routes");
 
 // Import seed function
 const seedDatabase = require("./src/utils/seed");
@@ -84,6 +88,10 @@ app.use("/api/live-classes", liveClassRoutes);
 app.use("/api/quiz", quizRoutes);
 app.use("/api/certificates", certificateRoutes);
 app.use("/api/admin", adminRoutes);
+// NEW: Installment payment plan routes
+app.use("/api/installments", installmentRoutes);
+// NEW: Admin custom pricing routes
+app.use("/api/custom-pricing", customPricingRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((req, res, next) => {

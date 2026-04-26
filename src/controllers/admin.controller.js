@@ -9,6 +9,112 @@ const Category = require("../models/Category.model");
 const Enrollment = require("../models/Enrollment.model");
 const Certificate = require("../models/Certificate.model");
 const LiveClass = require("../models/LiveClass.model");
+const { sendWelcomeEmail } = require("../utils/sendEmail");
+
+// ─── NEW: Create User (Admin Only) ────────────────────────────────────────────
+/**
+ * POST /api/admin/users/create
+ * Admin nayi user account banata hai — student, instructor, ya admin.
+ * Public registration se yeh alag hai — yahan admin password set karta hai.
+ *
+ * Body: { name, email, password, role }
+ */
+const createUser = async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body;
+
+    if (!name || !email || !password || !role) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email, password, and role are required.",
+      });
+    }
+
+    if (!['student', 'instructor', 'admin'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Role must be student, instructor, or admin.",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters.",
+      });
+    }
+
+    // Check if email already exists
+    const existing = await User.findOne({ email: email.toLowerCase().trim() });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "An account with this email already exists.",
+      });
+    }
+
+    // User create karo
+    const user = await User.create({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password, // Pre-save hook se hash hoga
+      role,
+      isActive: true,
+    });
+
+    // Welcome email (non-blocking)
+    sendWelcomeEmail(user).catch(() => {});
+
+    res.status(201).json({
+      success: true,
+      message: `${role.charAt(0).toUpperCase() + role.slice(1)} account created successfully!`,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (err) {
+    console.error("createUser error:", err);
+    res.status(500).json({ success: false, message: "Failed to create user." });
+  }
+};
+
+// ─── NEW: Delete User (Admin Only) ────────────────────────────────────────────
+/**
+ * DELETE /api/admin/users/:userId
+ * Admin user account permanently delete karta hai.
+ * (Soft delete ke liye toggleUserActive use karein)
+ */
+const deleteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Admin apna account delete nahi kar sakta
+    if (userId === req.user._id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot delete your own account.",
+      });
+    }
+
+    const user = await User.findByIdAndDelete(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `User "${user.name}" deleted successfully.`,
+    });
+  } catch (err) {
+    console.error("deleteUser error:", err);
+    res.status(500).json({ success: false, message: "Failed to delete user." });
+  }
+};
 
 // ─── Platform Stats ───────────────────────────────────────────────────────────
 /**
@@ -445,6 +551,8 @@ const getRecentSignups = async (req, res) => {
 module.exports = {
   getPlatformStats,
   getAllUsers,
+  createUser,    // NEW
+  deleteUser,    // NEW
   changeUserRole,
   toggleUserActive,
   getAllCourses: getAllCoursesAdmin,

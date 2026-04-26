@@ -49,12 +49,18 @@ const enrollInCourse = async (req, res) => {
     }
 
     // Create enrollment
+    // NEW: Free courses ka bhi 6 mahine ka access hoga
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 6);
+
     const enrollment = await Enrollment.create({
       user: req.user._id,
       course: courseId,
       amount: 0,
       paymentStatus: "completed",
+      expiresAt, // NEW: 6 months access
     });
+
 
     // Update course enrolled count and user's enrolled courses
     await Course.findByIdAndUpdate(courseId, { $inc: { enrolledCount: 1 } });
@@ -89,7 +95,7 @@ const getMyEnrollments = async (req, res) => {
     const enrollments = await Enrollment.find(filter)
       .populate({
         path: "course",
-        select: "title thumbnail instructor category totalLessons totalDuration language level",
+        select: "title thumbnail instructor category totalLessons totalDuration language level rating totalRatings enrolledCount price originalPrice",
         populate: [
           { path: "instructor", select: "name avatar" },
           { path: "category", select: "name slug icon" },
@@ -98,16 +104,27 @@ const getMyEnrollments = async (req, res) => {
       .sort({ lastAccessedAt: -1 })
       .lean();
 
+    const now = new Date();
+    // NEW: Har enrollment mein isExpired flag add karo real-time check ke liye
+    const enrollmentsWithExpiry = enrollments.map((e) => ({
+      ...e,
+      isExpired: e.expiresAt ? now > new Date(e.expiresAt) : false,
+      daysRemaining: e.expiresAt
+        ? Math.max(0, Math.ceil((new Date(e.expiresAt) - now) / (1000 * 60 * 60 * 24)))
+        : null,
+    }));
+
     res.status(200).json({
       success: true,
-      count: enrollments.length,
-      enrollments,
+      count: enrollmentsWithExpiry.length,
+      enrollments: enrollmentsWithExpiry,
     });
   } catch (err) {
     console.error("getMyEnrollments error:", err);
     res.status(500).json({ success: false, message: "Failed to fetch enrollments." });
   }
 };
+
 
 // ─── Get Course Progress ──────────────────────────────────────────────────────
 /**

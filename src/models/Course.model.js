@@ -27,17 +27,34 @@ const lessonSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    videoUrl: {
+
+    // ─── OLD: Cloudinary video upload ─────────────────────────────────────────
+    // (Commented out — kyunki ab YouTube unlisted videos use ho rahe hain)
+    // videoUrl: {
+    //   type: String,
+    //   default: null, // Cloudinary secure URL
+    // },
+    // videoPublicId: {
+    //   type: String,
+    //   default: null, // Cloudinary public_id for deletion
+    // },
+    // ──────────────────────────────────────────────────────────────────────
+
+    // ─── NEW: YouTube Unlisted Video ───────────────────────────────────────
+    // Instructor YouTube URL paste karega, hum sirf videoId save karenge
+    youtubeUrl: {
       type: String,
-      default: null, // Cloudinary secure URL
+      default: null, // Full YouTube URL (e.g. https://youtu.be/xxx or https://youtube.com/watch?v=xxx)
     },
-    videoPublicId: {
+    youtubeVideoId: {
       type: String,
-      default: null, // Cloudinary public_id for deletion
+      default: null, // Extracted video ID (e.g. "dQw4w9WgXcQ") — iframe mein use hoga
     },
+    // ──────────────────────────────────────────────────────────────────────
+
     duration: {
       type: Number,
-      default: 0, // in seconds
+      default: 0, // seconds mein (manual entry ya future auto-detect)
       min: 0,
     },
     order: {
@@ -46,7 +63,7 @@ const lessonSchema = new mongoose.Schema(
     },
     isFree: {
       type: Boolean,
-      default: false, // Free preview lesson
+      default: false,
     },
     resources: [resourceSchema],
     hasQuiz: {

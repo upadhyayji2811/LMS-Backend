@@ -13,6 +13,7 @@ const {
   completeLesson,
   reorderLessons,
   addResource,
+  getVideoStream,
 } = require("../controllers/lesson.controller");
 
 const { protectRoute } = require("../middleware/auth.middleware");
@@ -61,5 +62,9 @@ router.post(
 
 // Student: mark lesson complete
 router.post("/:courseId/lessons/:lessonId/complete", completeLesson);
+
+// Student/Public: get secure embed URL for lesson video
+// (auth handled inside controller — free lessons don't need login)
+router.get("/:courseId/lessons/:lessonId/stream", getVideoStream);
 
 module.exports = router;

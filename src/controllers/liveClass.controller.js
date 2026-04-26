@@ -54,21 +54,27 @@ const getUpcomingClasses = async (req, res) => {
       .limit(parseInt(limit))
       .lean();
 
-    // Add isLiveNow virtual
+    // Add isLiveNow virtual and filter out ended classes (no recording)
     const now2 = new Date();
-    const classesWithStatus = classes.map((cls) => {
-      const start = new Date(cls.scheduledAt);
-      const end = new Date(start.getTime() + cls.duration * 60 * 1000);
-      return {
-        ...cls,
-        isLiveNow: now2 >= start && now2 <= end && !cls.isCompleted,
-        minutesUntilStart: Math.round((start - now2) / 60000),
-      };
-    });
+    const classesWithStatus = classes
+      .map((cls) => {
+        const start = new Date(cls.scheduledAt);
+        const end = new Date(start.getTime() + cls.duration * 60 * 1000);
+        const isEnded = now2 > end;
+        return {
+          ...cls,
+          isLiveNow: now2 >= start && now2 <= end && !cls.isCompleted,
+          minutesUntilStart: Math.round((start - now2) / 60000),
+          _isEnded: isEnded,
+        };
+      })
+      // Hide ended classes that have no recording
+      .filter((cls) => !cls._isEnded || cls.recordingUrl)
+      .map(({ _isEnded, ...cls }) => cls);
 
     res.status(200).json({
       success: true,
-      count: classes.length,
+      count: classesWithStatus.length,
       total,
       classes: classesWithStatus,
       pagination: {
@@ -106,21 +112,27 @@ const getThisWeekClasses = async (req, res) => {
       .lean();
 
     const now = new Date();
-    const classesWithStatus = classes.map((cls) => {
-      const start2 = new Date(cls.scheduledAt);
-      const end2 = new Date(start2.getTime() + cls.duration * 60 * 1000);
-      return {
-        ...cls,
-        isLiveNow: now >= start2 && now <= end2 && !cls.isCompleted,
-        minutesUntilStart: Math.round((start2 - now) / 60000),
-      };
-    });
+    const classesWithStatus = classes
+      .map((cls) => {
+        const start2 = new Date(cls.scheduledAt);
+        const end2 = new Date(start2.getTime() + cls.duration * 60 * 1000);
+        const isEnded = now > end2;
+        return {
+          ...cls,
+          isLiveNow: now >= start2 && now <= end2 && !cls.isCompleted,
+          minutesUntilStart: Math.round((start2 - now) / 60000),
+          _isEnded: isEnded,
+        };
+      })
+      // Hide ended classes that have no recording
+      .filter((cls) => !cls._isEnded || cls.recordingUrl)
+      .map(({ _isEnded, ...cls }) => cls);
 
     res.status(200).json({
       success: true,
       week: "current",
       weekRange: { start, end },
-      count: classes.length,
+      count: classesWithStatus.length,
       classes: classesWithStatus,
     });
   } catch (err) {

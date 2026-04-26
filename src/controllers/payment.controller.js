@@ -10,6 +10,8 @@ const Course = require("../models/Course.model");
 const Enrollment = require("../models/Enrollment.model");
 const User = require("../models/User.model");
 const { sendEnrollmentConfirmation } = require("../utils/sendEmail");
+// NEW: CustomPricing model — admin custom price check ke liye
+const CustomPricing = require("../models/CustomPricing.model");
 
 // ─── Razorpay Instance ────────────────────────────────────────────────────────
 const getRazorpay = () => {
@@ -73,7 +75,20 @@ const createOrder = async (req, res) => {
     }
 
     const razorpay = getRazorpay();
-    const amountInPaise = Math.round(course.price * 100);
+
+    // NEW: Pehle check karo ki is student ke liye custom price set hai ya nahi
+    const now = new Date();
+    const customPricing = await CustomPricing.findOne({
+      student: req.user._id,
+      course: courseId,
+      isActive: true,
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
+    });
+
+    // OLD: const amountInPaise = Math.round(course.price * 100);
+    // NEW: Custom price hai toh woh use karo, warna normal course price
+    const finalPrice = customPricing ? customPricing.customPrice : course.price;
+    const amountInPaise = Math.round(finalPrice * 100);
 
     // Razorpay receipt max length = 40 chars
     const receipt = `lms_${req.user._id.toString().slice(-8)}_${Date.now().toString().slice(-10)}`;
@@ -101,7 +116,11 @@ const createOrder = async (req, res) => {
       course: {
         _id: course._id,
         title: course.title,
-        price: course.price,
+        // OLD: price: course.price,
+        // NEW: Custom price dikhao agar hai
+        price: customPricing ? customPricing.customPrice : course.price,
+        originalPrice: course.price, // Original price bhi bhejo
+        hasCustomPrice: !!customPricing, // Flag for frontend
         thumbnail: course.thumbnail,
         instructor: course.instructor?.name,
       },
@@ -175,6 +194,10 @@ const verifyPayment = async (req, res) => {
     }
 
     // ─── Create or Update Enrollment ─────────────────────────────────────────
+    // NEW: 6 mahine ka access — purchase date + 6 months
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + 6);
+
     const enrollment = await Enrollment.create({
       user: req.user._id,
       course: courseId,
@@ -184,7 +207,9 @@ const verifyPayment = async (req, res) => {
       currency: "INR",
       paymentStatus: "completed",
       purchasedAt: new Date(),
+      expiresAt, // NEW: 6 months access
     });
+
 
     // ─── Update Course Enrolled Count ─────────────────────────────────────────
     await Course.findByIdAndUpdate(courseId, {

@@ -115,4 +115,20 @@ const optionalAuth = async (req, res, next) => {
   }
 };
 
-module.exports = { verifyToken, protectRoute, optionalAuth };
+// ─── adminOnly middleware (NEW — installment + custom pricing routes ke liye) ──
+/**
+ * Sirf admin role wale users ko allow karta hai.
+ * protectRoute ke baad use karo.
+ */
+const adminOnly = (req, res, next) => {
+  if (!req.user || req.user.role !== "admin") {
+    return res.status(403).json({
+      success: false,
+      message: "Access denied. Admin only.",
+    });
+  }
+  next();
+};
+
+module.exports = { verifyToken, protectRoute, optionalAuth, adminOnly };
+
