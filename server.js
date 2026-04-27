@@ -156,6 +156,14 @@ app.use((err, req, res, next) => {
   });
 });
 
+app.get("/", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "LMS Server is running 🚀",
+
+  });
+});
+
 // ─── MongoDB Connection & Server Start ────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI;
