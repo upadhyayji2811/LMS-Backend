@@ -182,11 +182,11 @@ mongoose
       console.warn("⚠️ Seed data warning:", seedErr.message);
     }
 
-    app.listen(PORT, () => {
-      console.log(`🚀 LMS Server running on port ${PORT}`);
-      console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
-      console.log(`🌐 Client URL: ${process.env.CLIENT_URL || "http://localhost:3000"}`);
-    });
+    // app.listen(PORT, () => {
+    //   console.log(`🚀 LMS Server running on port ${PORT}`);
+    //   console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
+    //   console.log(`🌐 Client URL: ${process.env.CLIENT_URL || "http://localhost:3000"}`);
+    // });
   })
   .catch((err) => {
     console.error("❌ MongoDB connection error:", err.message);
