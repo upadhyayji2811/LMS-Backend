@@ -68,7 +68,7 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
-app.get("/health", (req, res) => {
+app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
     message: "LMS Server is running 🚀",
@@ -156,9 +156,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.get("/", (req, res) => {
-  res.send("Backend is running 🚀");
-});
+
 
 // ─── MongoDB Connection & Server Start ────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
