@@ -170,52 +170,55 @@ app.use((err, req, res, next) => {
 });
 
 
+// ─── Export app (used by Vercel api/index.js) ─────────────────────────────────
+module.exports = app;
 
-// ─── MongoDB Connection & Server Start ────────────────────────────────────────
-const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI;
+// ─── Local Development Only: Connect DB + Start Server ────────────────────────
+// This block runs ONLY when server.js is started directly (nodemon / node server.js)
+// On Vercel, api/index.js handles the DB connection instead
+if (require.main === module) {
+  const PORT = process.env.PORT || 5000;
+  const MONGODB_URI = process.env.MONGODB_URI;
 
-if (!MONGODB_URI) {
-  console.error("❌ MONGODB_URI is not defined in environment variables");
-  process.exit(1);
-}
-
-mongoose
-  .connect(MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(async () => {
-    console.log("✅ MongoDB connected successfully");
-
-    // Run seed data on first startup
-    try {
-      await seedDatabase();
-    } catch (seedErr) {
-      console.warn("⚠️ Seed data warning:", seedErr.message);
-    }
-
-    app.listen(PORT, () => {
-      console.log(`🚀 LMS Server running on port ${PORT}`);
-      console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
-      console.log(`🌐 Client URL: ${process.env.CLIENT_URL || "http://localhost:3000"}`);
-    });
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB connection error:", err.message);
+  if (!MONGODB_URI) {
+    console.error("❌ MONGODB_URI is not defined in environment variables");
     process.exit(1);
+  }
+
+  mongoose
+    .connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    })
+    .then(async () => {
+      console.log("✅ MongoDB connected successfully");
+
+      try {
+        await seedDatabase();
+      } catch (seedErr) {
+        console.warn("⚠️ Seed data warning:", seedErr.message);
+      }
+
+      app.listen(PORT, () => {
+        console.log(`🚀 LMS Server running on port ${PORT}`);
+        console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
+        console.log(`🌐 Client URL: ${process.env.CLIENT_URL || "http://localhost:3000"}`);
+      });
+    })
+    .catch((err) => {
+      console.error("❌ MongoDB connection error:", err.message);
+      process.exit(1);
+    });
+
+  // ─── Graceful Shutdown ──────────────────────────────────────────────────────
+  process.on("SIGTERM", async () => {
+    console.log("🛑 SIGTERM received. Closing server gracefully...");
+    await mongoose.connection.close();
+    process.exit(0);
   });
 
-// ─── Graceful Shutdown ────────────────────────────────────────────────────────
-process.on("SIGTERM", async () => {
-  console.log("🛑 SIGTERM received. Closing server gracefully...");
-  await mongoose.connection.close();
-  process.exit(0);
-});
-
-process.on("unhandledRejection", (err) => {
-  console.error("❌ Unhandled Promise Rejection:", err.message);
-  process.exit(1);
-});
-
-module.exports = app;
+  process.on("unhandledRejection", (err) => {
+    console.error("❌ Unhandled Promise Rejection:", err.message);
+    process.exit(1);
+  });
+}
