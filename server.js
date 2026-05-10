@@ -44,9 +44,22 @@ app.set("trust proxy", 1);
 app.use(helmet());
 
 // CORS configuration
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://lms-frontend-umber-six.vercel.app",
+  process.env.CLIENT_URL,
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: (origin, callback) => {
+      // Allow requests with no origin (Postman, curl, mobile apps)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error(`CORS: Origin ${origin} not allowed`));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -182,11 +195,11 @@ mongoose
       console.warn("⚠️ Seed data warning:", seedErr.message);
     }
 
-    // app.listen(PORT, () => {
-    //   console.log(`🚀 LMS Server running on port ${PORT}`);
-    //   console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
-    //   console.log(`🌐 Client URL: ${process.env.CLIENT_URL || "http://localhost:3000"}`);
-    // });
+    app.listen(PORT, () => {
+      console.log(`🚀 LMS Server running on port ${PORT}`);
+      console.log(`📡 Environment: ${process.env.NODE_ENV || "development"}`);
+      console.log(`🌐 Client URL: ${process.env.CLIENT_URL || "http://localhost:3000"}`);
+    });
   })
   .catch((err) => {
     console.error("❌ MongoDB connection error:", err.message);
